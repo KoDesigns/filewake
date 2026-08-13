@@ -1,0 +1,8 @@
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn==0.52.1
+pydantic-settings==2.15.0
+python-multipart==0.0.32
+python-magic==0.4.27
+fonttools[woff]==4.63.0
+brotli==1.2.0

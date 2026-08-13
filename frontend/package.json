@@ -1,0 +1,24 @@
+{
+  "name": "stateless-converter-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./jsconfig.json"
+  },
+  "dependencies": {
+    "jszip": "3.10.1",
+    "svelte": "5.56.8"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.0",
+    "svelte-check": "4.7.5",
+    "typescript": "6.0.3",
+    "vite": "8.2.1"
+  },
+  "engines": {
+    "node": ">=24.19.0"
+  }
+}

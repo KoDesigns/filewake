@@ -1,0 +1,6 @@
+brew "ffmpeg"
+brew "imagemagick"
+brew "libmagic"
+brew "pandoc"
+brew "vips"
+cask "libreoffice"

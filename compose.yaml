@@ -1,0 +1,40 @@
+services:
+  converter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: local/stateless-converter:1.0.0
+    container_name: converter
+    ports:
+      - "${CONVERTER_PORT:-8090}:8080"
+    restart: unless-stopped
+    environment:
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-2048}
+      MAX_BATCH_FILES: ${MAX_BATCH_FILES:-50}
+      MAX_BATCH_SIZE_MB: ${MAX_BATCH_SIZE_MB:-4096}
+      MAX_PARALLEL_CONVERSIONS: ${MAX_PARALLEL_CONVERSIONS:-2}
+      MAX_IMAGE_PIXELS: ${MAX_IMAGE_PIXELS:-100000000}
+      MAX_OUTPUT_SIZE_MB: ${MAX_OUTPUT_SIZE_MB:-4096}
+      IMAGE_TIMEOUT_SECONDS: ${IMAGE_TIMEOUT_SECONDS:-120}
+      FONT_TIMEOUT_SECONDS: ${FONT_TIMEOUT_SECONDS:-120}
+      DOCUMENT_TIMEOUT_SECONDS: ${DOCUMENT_TIMEOUT_SECONDS:-300}
+      AUDIO_TIMEOUT_SECONDS: ${AUDIO_TIMEOUT_SECONDS:-600}
+      VIDEO_TIMEOUT_SECONDS: ${VIDEO_TIMEOUT_SECONDS:-1800}
+    tmpfs:
+      - /tmp:size=${TMPFS_SIZE:-4G},mode=1777
+      - /run:size=64M,mode=0755
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: ${MEMORY_LIMIT:-6g}
+    cpus: ${CPU_LIMIT:-4.0}
+    stop_grace_period: 15s
+    networks:
+      - converter_internal
+
+networks:
+  converter_internal:
+    internal: true
