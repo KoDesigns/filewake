@@ -1,27 +1,30 @@
 <p align="center">
-  <img src="frontend/static/Logo_Silhuet_invert_Gradient.svg" width="112" alt="Filewake logo" />
+  <img src="frontend/static/Logo_Silhuet_invert_Gradient.svg" width="116" alt="Filewake logo" />
 </p>
 
 <h1 align="center">Filewake</h1>
 
 <p align="center">
-  A private, local and stateless file conversion service.<br />
-  Drop files, choose an output, convert, download, and forget everything.
+  Drop files. Pick an output. Download. Done.
 </p>
 
-Filewake combines a minimal drag-and-drop interface with an API for scripts, n8n, agents and other applications. It runs as one hardened Docker container with one port, no database, no cloud conversion service and no persistent file storage.
+<p align="center">
+  <a href="https://github.com/KoDesigns/filewake/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/KoDesigns/filewake?style=flat-square&color=005bd0" /></a>
+  <a href="https://github.com/KoDesigns/filewake/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/KoDesigns/filewake?style=flat-square&logo=github&color=005bd0" /></a>
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-one_container-005bd0?style=flat-square&logo=docker&logoColor=white" />
+  <img alt="Svelte" src="https://img.shields.io/badge/Svelte-static_UI-ff3e00?style=flat-square&logo=svelte&logoColor=white" />
+  <img alt="Python" src="https://img.shields.io/badge/Python-FastAPI-3776ab?style=flat-square&logo=python&logoColor=white" />
+</p>
 
-> Files are converted locally on your server. They are not sent to external conversion services and are removed from temporary server storage after conversion.
+Filewake is a local, stateless file converter with a drag-and-drop UI and a small HTTP API.
 
-## Quick start with Docker
+One container. One port. No accounts, database, history, cloud converter, telemetry, or persistent file storage.
 
-### Requirements
+> Files are processed locally on your server, held only in temporary storage while needed, then removed. Browser previews and downloads disappear when the page is refreshed or cleared.
 
-- Docker Engine or Docker Desktop
-- Docker Compose V2 (`docker compose`)
-- At least 6 GB RAM available to Docker for the default limits
+## Run it
 
-Clone the repository and start Filewake:
+You need Docker Compose V2 and about 6 GB of memory with the default limits.
 
 ```bash
 git clone https://github.com/KoDesigns/filewake.git
@@ -29,81 +32,172 @@ cd filewake
 docker compose up -d --build
 ```
 
-Open:
+Open [http://localhost:8090](http://localhost:8090), or replace `localhost` with your server's LAN address.
+
+Check it:
+
+```bash
+curl -fsS http://127.0.0.1:8090/api/health
+docker compose ps
+```
+
+The first build compiles FFmpeg, libvips, and ImageMagick. A home server may need 10–30 minutes. Completed stages are cached, so later starts and most rebuilds are much faster.
+
+## Dockge
+
+Dockge normally watches `/opt/stacks`. Put Filewake there:
+
+```bash
+sudo mkdir -p /opt/stacks/filewake
+sudo chown "$USER":"$(id -gn)" /opt/stacks/filewake
+git clone https://github.com/KoDesigns/filewake.git /opt/stacks/filewake
+cd /opt/stacks/filewake
+docker compose config
+```
+
+In Dockge, open the top-right menu and select **Scan Stacks Folder**. Open `filewake`, press **Deploy**, then visit:
 
 ```text
-http://localhost:8090
+http://SERVER-IP:8090
 ```
 
-Verify the API and packaged conversion engines:
+`docker compose ps` should show `8090->8080`, not only `8080/tcp`.
+
+No setup wizard. No database migration. No volume creation.
+
+## What it converts
+
+The live source of truth is [`GET /api/formats`](#api).
+
+| Type | Inputs | Outputs |
+|---|---|---|
+| Images | JPG, PNG, WebP, AVIF, HEIC/HEIF, TIFF | JPG, PNG, WebP, AVIF, TIFF |
+| Audio | MP3, WAV, FLAC, AAC, M4A, OGG, Opus, AIFF | Other allowlisted audio formats |
+| Video | MP4, MKV, MOV, WebM | MP4, MKV, MOV, WebM |
+| Documents | DOCX, ODT, RTF, TXT, Markdown, HTML, EPUB, PPTX, ODP, XLSX, ODS, CSV | Explicit allowlisted routes, including PDF and CSV ↔ XLSX |
+| Fonts | TTF, OTF, WOFF, WOFF2 | WOFF/WOFF2 or the recoverable desktop format |
+
+PDF is output-only. CSV uses UTF-8 and comma-separated output. CSV → XLSX keeps formula-like values as text. XLSX → CSV exports the first worksheet because CSV cannot hold multiple sheets.
+
+## API
+
+The UI uses the same API available to scripts, n8n, and agents.
+
+| Method | Endpoint | Does what |
+|---|---|---|
+| `GET` | `/api/health` | Engine availability |
+| `GET` | `/api/info` | Version and limits |
+| `GET` | `/api/formats` | Conversion matrix |
+| `POST` | `/api/inspect` | Detect a file and list valid outputs |
+| `POST` | `/api/convert` | Convert one file and return it |
+| `GET` | `/api/openapi.json` | OpenAPI schema |
+
+Inspect:
 
 ```bash
-curl http://127.0.0.1:8090/api/health
+curl -sS \
+  -F 'file=@photo.heic' \
+  http://127.0.0.1:8090/api/inspect | jq
 ```
 
-The first build compiles FFmpeg, libvips and ImageMagick, then packages the remaining media and document engines. On a modest home server this can take 10–30 minutes. Do not interrupt it while a native build step is still progressing. Docker caches completed stages, so later starts and most rebuilds are substantially faster.
-
-Useful Docker commands:
+Convert:
 
 ```bash
-# Follow logs
-docker compose logs -f converter
-
-# Restart
-docker compose restart converter
-
-# Stop and remove the container
-docker compose down
-
-# Rebuild after an update
-docker compose build --pull
-docker compose up -d
+curl -fS \
+  -F 'file=@photo.heic' \
+  -F 'output_format=jpg' \
+  http://127.0.0.1:8090/api/convert \
+  --output photo.jpg
 ```
 
-No database migration, account setup, volume creation or separate frontend service is required.
+Only `file` and `output_format` are accepted. There are no endpoints for URLs, converter arguments, filters, scripts, or templates.
 
-## Dockge setup
+For n8n, send a multipart HTTP request with `file` and `output_format`, then receive the response as binary. An agent only needs:
 
-Filewake is a normal Compose stack and can be deployed directly through Dockge:
+```text
+GET /api/formats → POST /api/inspect → POST /api/convert
+```
 
-1. Find Dockge's configured stack directory. The standard location is `/opt/stacks`.
-2. Clone Filewake into a folder directly below it:
+## How it works
 
-   ```bash
-   sudo mkdir -p /opt/stacks/filewake
-   sudo chown "$USER":"$(id -gn)" /opt/stacks/filewake
-   git clone https://github.com/KoDesigns/filewake.git /opt/stacks/filewake
-   cd /opt/stacks/filewake
-   docker compose config
-   ```
+```text
+Browser / script
+       │
+       ▼
+FastAPI + static Svelte UI
+       │
+       ▼
+Detection → allowlist → dispatcher
+       │
+       ├── libvips / restricted ImageMagick
+       ├── FFmpeg / ffprobe
+       ├── LibreOffice / Pandoc
+       └── FontTools
+```
 
-3. In Dockge's top-right menu, select **Scan Stacks Folder**.
-4. Open the discovered `filewake` stack and select **Deploy**.
-5. Open `http://SERVER-IP:8090`.
+Svelte is compiled during the image build. FastAPI/Uvicorn serves both the static UI and `/api/*`. Node is not present at runtime.
 
-Verify the published port and API from the server:
+Each request gets its own random workspace under `/tmp/converter`. Compose mounts `/tmp` in RAM. The root filesystem stays read-only and there are no persistent volumes.
+
+## Security
+
+Filewake treats every upload as hostile.
+
+- strict format and conversion allowlist
+- extension, MIME, signature, and parser checks
+- no shell interpolation or user-supplied converter arguments
+- upload, output, pixel, multipart, concurrency, and timeout limits
+- isolated workspaces and LibreOffice profiles
+- minimal subprocess environments
+- restrictive ImageMagick policy
+- FFmpeg protocol restrictions and `-nostdin`
+- Pandoc sandboxing where supported
+- non-root UID `10001`
+- read-only root filesystem
+- all Linux capabilities dropped
+- `no-new-privileges`
+- writable `tmpfs` only for `/tmp` and `/run`
+- cleanup after success, failure, timeout, and disconnect
+
+Use it on a trusted LAN or VPN. Do not put it directly on the public internet without authentication, TLS, rate limiting, reverse-proxy body limits, and monitoring. Containers reduce risk; they are not magic.
+
+<details>
+<summary><strong>Configuration</strong></summary>
+
+Set these in Compose, a `.env` file, or Dockge's stack editor.
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `CONVERTER_PORT` | `8090` | Host port |
+| `MAX_FILE_SIZE_MB` | `2048` | Per-file upload limit |
+| `MAX_BATCH_FILES` | `50` | Browser batch count |
+| `MAX_BATCH_SIZE_MB` | `4096` | Browser batch size |
+| `MAX_PARALLEL_CONVERSIONS` | `2` | Concurrent native jobs |
+| `MAX_IMAGE_PIXELS` | `100000000` | Decoded image ceiling |
+| `MAX_OUTPUT_SIZE_MB` | `4096` | Generated output ceiling |
+| `IMAGE_TIMEOUT_SECONDS` | `120` | Image timeout |
+| `FONT_TIMEOUT_SECONDS` | `120` | Font timeout |
+| `DOCUMENT_TIMEOUT_SECONDS` | `300` | Document timeout |
+| `AUDIO_TIMEOUT_SECONDS` | `600` | Audio timeout |
+| `VIDEO_TIMEOUT_SECONDS` | `1800` | Video timeout |
+| `TMPFS_SIZE` | `4G` | RAM-backed temporary space |
+| `MEMORY_LIMIT` | `6g` | Container memory limit |
+| `CPU_LIMIT` | `4.0` | Container CPU limit |
+
+Example:
 
 ```bash
-cd /opt/stacks/filewake
-docker compose ps
-curl -fsS http://127.0.0.1:8090/api/health
+CONVERTER_PORT=8091 docker compose up -d
 ```
 
-The `PORTS` column should include `0.0.0.0:8090->8080/tcp` (and may also show the IPv6 equivalent), rather than only `8080/tcp`.
+Keep the tmpfs, memory, upload, output, and concurrency limits sensible relative to one another.
 
-Normal operation uses no persistent Docker volume. `/tmp` and `/run` are writable `tmpfs` mounts; the remainder of the container filesystem is read-only.
+</details>
 
-## Local development
+<details>
+<summary><strong>Local development</strong></summary>
 
-Local development runs FastAPI and the Svelte frontend separately with one launcher command.
-
-### Requirements
-
-- macOS with Homebrew
-- Python 3
-- Node.js 24.19.0 or a newer supported Node 24 LTS release
-
-Install the native conversion engines and development dependencies once:
+The included launcher starts FastAPI and Vite together on macOS.
 
 ```bash
 brew bundle --file Brewfile
@@ -114,273 +208,45 @@ python3 -m venv .venv
 cd frontend
 npm ci
 cd ..
-```
 
-Start both development servers:
-
-```bash
+chmod +x dev.sh
 ./dev.sh
 ```
 
-Open the UI at `http://127.0.0.1:5173`. The API runs at `http://127.0.0.1:8080`, and Vite proxies `/api` requests to it. Press `Ctrl+C` once to stop both servers.
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The API runs on port `8080`, and Vite proxies `/api` to it.
 
-Override the ports if they are already in use:
+Override either port when needed:
 
 ```bash
 API_PORT=8081 FRONTEND_PORT=5174 ./dev.sh
 ```
 
-If the launcher is not executable after downloading the repository:
+</details>
+
+<details>
+<summary><strong>Tests, versions, and image scanning</strong></summary>
 
 ```bash
-chmod +x dev.sh
-./dev.sh
-```
+# Backend and security tests
+.venv/bin/pytest -m 'not integration'
 
-## API
-
-The browser UI uses the same public API available to scripts and integrations.
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/api/health` | Check service and engine availability |
-| `GET` | `/api/info` | Read Filewake version, limits and capabilities |
-| `GET` | `/api/formats` | Get the authoritative conversion matrix |
-| `POST` | `/api/inspect` | Detect an uploaded file and list valid outputs |
-| `POST` | `/api/convert` | Convert one uploaded file and return the binary result |
-| `GET` | `/api/openapi.json` | Download the OpenAPI schema |
-
-### List available conversions
-
-```bash
-curl -sS http://127.0.0.1:8090/api/formats | jq
-```
-
-The response is generated from the backend registry. The frontend does not maintain a separate format list.
-
-### Inspect a file
-
-```bash
-curl -sS \
-  -F 'file=@photo.heic' \
-  http://127.0.0.1:8090/api/inspect | jq
-```
-
-Example response:
-
-```json
-{
-  "filename": "photo.heic",
-  "detected_format": "heic",
-  "mime": "image/heic",
-  "category": "image",
-  "size": 4839201,
-  "possible_outputs": ["jpg", "png", "webp", "avif"]
-}
-```
-
-Filewake checks the filename extension, client MIME type, file signature and parser metadata. A spoofed extension does not choose the conversion engine.
-
-### Convert a file
-
-```bash
-curl -fS \
-  -F 'file=@photo.heic' \
-  -F 'output_format=jpg' \
-  http://127.0.0.1:8090/api/convert \
-  --output photo.jpg
-```
-
-The response is the converted binary with an attachment filename and output MIME type. Helpful response headers include:
-
-```text
-X-Input-Format
-X-Output-Format
-X-Conversion-Engine
-X-Original-Size
-X-Converted-Size
-```
-
-Only `file` and `output_format` are accepted. Filewake does not accept converter arguments, filters, scripts, templates or URLs.
-
-### API errors
-
-Errors use consistent JSON and do not expose raw native-process output:
-
-```json
-{
-  "error": "unsupported_conversion",
-  "message": "This conversion is not supported."
-}
-```
-
-Common error codes include `unsupported_file`, `unsupported_conversion`, `invalid_file`, `file_too_large`, `conversion_failed`, `conversion_timeout`, `output_too_large`, `temporary_storage_full` and `server_busy`.
-
-### n8n and agents
-
-In n8n, use an **HTTP Request** node with a multipart request:
-
-- `file`: the incoming binary file
-- `output_format`: a value returned by `/api/formats` or `/api/inspect`
-- response type: file/binary
-
-An agent needs only this flow:
-
-```text
-GET /api/formats → POST /api/inspect → POST /api/convert
-```
-
-No knowledge of FFmpeg, LibreOffice, libvips, Pandoc or FontTools is required.
-
-## Supported formats
-
-The exact live matrix is always available from `/api/formats`.
-
-| Category | Inputs | Typical outputs |
-|---|---|---|
-| Images | JPG, PNG, WebP, AVIF, HEIC/HEIF, TIFF | JPG, PNG, WebP, AVIF, TIFF |
-| Audio | MP3, WAV, FLAC, AAC, M4A, OGG, Opus, AIFF | Any other allowlisted audio format |
-| Video | MP4, MKV, MOV, WebM | MP4, MKV, MOV, WebM |
-| Documents | DOCX, ODT, RTF, TXT, Markdown, HTML, EPUB, PPTX, ODP, XLSX, ODS | Explicit allowlisted routes, including PDF output |
-| Fonts | TTF, OTF, WOFF, WOFF2 | WOFF/WOFF2 or the recoverable original desktop format |
-
-PDF is output-only. Filewake deliberately does not accept `.designspace`, UFO projects, PostScript, EPS, XPS, URL inputs, uploaded scripts/filters, arbitrary converter options or encrypted-document bypass attempts.
-
-## Configuration
-
-Set values in the Compose environment or Dockge stack editor.
-
-| Variable | Default | Purpose |
-|---|---:|---|
-| `CONVERTER_PORT` | `8090` | Published host port |
-| `MAX_FILE_SIZE_MB` | `2048` | Maximum size of one upload |
-| `MAX_BATCH_FILES` | `50` | Frontend batch file limit |
-| `MAX_BATCH_SIZE_MB` | `4096` | Frontend combined batch limit |
-| `MAX_PARALLEL_CONVERSIONS` | `2` | Maximum concurrent native conversions |
-| `MAX_IMAGE_PIXELS` | `100000000` | Decoded image pixel ceiling |
-| `MAX_OUTPUT_SIZE_MB` | `4096` | Maximum generated output size |
-| `IMAGE_TIMEOUT_SECONDS` | `120` | Image conversion timeout |
-| `FONT_TIMEOUT_SECONDS` | `120` | Font conversion timeout |
-| `DOCUMENT_TIMEOUT_SECONDS` | `300` | Document conversion timeout |
-| `AUDIO_TIMEOUT_SECONDS` | `600` | Audio conversion timeout |
-| `VIDEO_TIMEOUT_SECONDS` | `1800` | Video conversion timeout |
-| `TMPFS_SIZE` | `4G` | RAM-backed `/tmp` allocation |
-| `MEMORY_LIMIT` | `6g` | Container memory limit |
-| `CPU_LIMIT` | `4.0` | Container CPU limit |
-
-Example port override:
-
-```bash
-CONVERTER_PORT=8091 docker compose up -d
-```
-
-Keep `TMPFS_SIZE`, `MEMORY_LIMIT`, upload/output limits and expected concurrency consistent with one another.
-
-## Architecture
-
-```text
-Browser / script / agent
-          │
-          ▼
-  FastAPI + static Svelte UI
-          │
-          ▼
-  Validation and registry
-          │
-          ▼
-       Dispatcher
-     ┌────┼────────┬────────────┐
-     ▼    ▼        ▼            ▼
-  libvips FFmpeg LibreOffice FontTools
-     │               │
-     ▼               ▼
-ImageMagick         Pandoc
-  fallback
-```
-
-The production image contains the frontend and every conversion engine. Svelte is compiled to static HTML, CSS and JavaScript during the image build. FastAPI/Uvicorn serves both those assets and `/api/*` from the same container and port. Node.js exists only in the frontend build stage and is not present at runtime.
-
-## Privacy and storage
-
-Filewake has:
-
-- no accounts
-- no database
-- no conversion history
-- no analytics or telemetry
-- no cloud conversion API
-- no persistent upload or output directory
-- no persistent Docker volume
-
-Each request receives a random workspace below `/tmp/converter`. In Compose, `/tmp` is RAM-backed `tmpfs`. Inputs and outputs are deleted after streaming completes, fails, times out or disconnects. Source previews and successful results use temporary browser `Blob` objects—including direct local previews of supported font files—and disappear when the page is refreshed or cleared.
-
-The accurate guarantee is **no persistent file storage**. Uploaded bytes necessarily exist temporarily while a conversion is running.
-
-## Security model
-
-Filewake processes arbitrary, potentially malicious binary files. Its defenses are layered:
-
-- strict conversion allowlist
-- file signature and MIME inspection
-- no shell interpolation or user-controlled command arguments
-- bounded upload, output, pixel and multipart limits
-- per-engine timeouts
-- application-level concurrency limiting
-- isolated temporary workspaces and LibreOffice profiles
-- sanitized subprocess environments
-- restrictive ImageMagick policy
-- FFmpeg local-file protocol restrictions and `-nostdin`
-- Pandoc sandboxing where supported
-- non-root container user (`10001:10001`)
-- read-only root filesystem
-- all Linux capabilities dropped
-- `no-new-privileges`
-- writable `tmpfs` only for `/tmp` and `/run`
-- immediate cleanup on success, failure and timeout
-
-The recommended deployment target is a trusted LAN or VPN. Do not expose Filewake directly to the public internet without authentication, TLS, rate limiting, reverse-proxy body limits and monitoring.
-
-Container isolation reduces risk but is not a perfect sandbox against every future native-parser or kernel vulnerability. Keep Docker, the host kernel and the Filewake image patched.
-
-## Tests
-
-Run backend and security tests:
-
-```bash
-.venv/bin/pytest
-```
-
-Run native conversion integration tests:
-
-```bash
+# Native conversion tests
 .venv/bin/pytest -m integration
-```
 
-Validate and build the frontend:
-
-```bash
+# Frontend
 cd frontend
 npm run check
 npm run build
 ```
 
-Run dependency audits:
-
-```bash
-.venv/bin/pip-audit -r requirements.txt
-cd frontend && npm audit
-```
-
-## Image inspection and vulnerability scanning
-
-Inspect packaged versions and the ImageMagick policy:
+Inspect the packaged versions and ImageMagick policy:
 
 ```bash
 docker run --rm --entrypoint cat local/stateless-converter:1.0.0 /app/dependency-versions.txt
 docker run --rm --entrypoint magick local/stateless-converter:1.0.0 -list policy
 ```
 
-Scan the final image with Trivy; Trivy is a deployment tool and is not included in the runtime image:
+Scan the final image outside the runtime container:
 
 ```bash
 trivy image \
@@ -395,21 +261,11 @@ trivy image \
   local/stateless-converter:1.0.0
 ```
 
-Review every High/Critical result. Do not suppress a finding without understanding whether the affected component is reachable and whether a patched version exists.
+Review findings instead of blindly suppressing them.
 
-## Updating Filewake
+</details>
 
-Dependencies are not updated inside a running container. The update process is:
-
-1. Review upstream security advisories.
-2. Update exact dependency pins, checksums and image digests.
-3. Recreate and review lock files.
-4. Run unit, integration, security and frontend tests.
-5. Rebuild with `docker compose build --pull`.
-6. Inspect packaged versions and run a vulnerability scan.
-7. Deploy the rebuilt image.
-
-For a normal Dockge installation cloned from GitHub:
+## Update
 
 ```bash
 cd /opt/stacks/filewake
@@ -417,79 +273,55 @@ git pull --ff-only
 docker compose up -d --build
 ```
 
-Dockge can be used for the final deploy/recreate step instead. Filewake does not update dependencies inside a running container.
+Updates happen by rebuilding the image. Nothing updates itself inside the running container.
 
-## Troubleshooting
+## Known limits
 
-### A conversion engine is unavailable
+- PDF is an output format, not a promise of perfect editable reconstruction.
+- Office conversions can change layout when the source depends on unavailable fonts or platform-specific behavior.
+- XLSX → CSV exports one worksheet.
+- Font projects such as `.designspace` and UFO are not supported.
+- PostScript, EPS, XPS, arbitrary URLs, macros, uploaded filters, and custom converter arguments are not supported.
+- Very large browser downloads and browser-created ZIP files still depend on available client memory.
 
-Check engine discovery:
+<details>
+<summary><strong>Troubleshooting</strong></summary>
 
-```bash
-curl http://127.0.0.1:8090/api/health
-```
-
-For Docker, inspect `/app/dependency-versions.txt`. For local development, install the complete `Brewfile` and restart `./dev.sh`.
-
-### A port is already in use
-
-Docker:
-
-```bash
-CONVERTER_PORT=8091 docker compose up -d
-```
-
-Local development:
-
-```bash
-API_PORT=8081 FRONTEND_PORT=5174 ./dev.sh
-```
-
-### The container is healthy but the browser reports connection refused
-
-Confirm that Docker actually published the port:
+Check the stack first:
 
 ```bash
 docker compose ps
-docker compose config | grep -A5 -B2 'ports:'
-sudo ss -ltnp | grep ':8090'
+docker compose logs --tail=150 converter
+curl -fsS http://127.0.0.1:8090/api/health
 ```
 
-`docker compose ps` must show `8090->8080`. Recreate the container after changing Compose networking or port configuration:
+If the container is healthy but the browser says connection refused, `docker compose ps` must show `8090->8080`. Confirm the binding:
 
 ```bash
+docker compose config | grep -A5 -B2 'ports:'
+sudo ss -ltnp | grep ':8090'
 docker compose down
 docker compose up -d
 ```
 
-Filewake uses a dedicated standard bridge network. Do not change it to `internal: true`; Docker cannot publish the application port from a container attached only to an internal network.
+Do not change Filewake's dedicated bridge network to `internal: true`; Docker cannot publish the application port from a container attached only to an internal network.
 
-### Temporary storage is full
+If an engine is unavailable, inspect the packaged report:
 
-Increase `TMPFS_SIZE` and the container memory allocation, or lower file, output and concurrency limits.
+```bash
+docker run --rm --entrypoint cat local/stateless-converter:1.0.0 /app/dependency-versions.txt
+```
 
-### LibreOffice fails on the read-only filesystem
-
-Do not make the root filesystem writable. Verify that `/tmp` is mounted and writable by UID `10001`; Filewake redirects each job's HOME and LibreOffice profile there.
-
-### ImageMagick denies an image
-
-Verify the active policy:
+If ImageMagick rejects a file, inspect the active policy rather than broadening it blindly:
 
 ```bash
 docker run --rm --entrypoint magick local/stateless-converter:1.0.0 -list policy
 ```
 
-Do not broaden the policy casually. libvips is the primary raster engine; ImageMagick is a restricted fallback.
+If `/tmp` fills up, increase `TMPFS_SIZE` and available container memory, or lower the file, output, and concurrency limits.
 
-### Dockge cannot build the image
-
-The Docker daemon needs outbound build access to official Docker Hub, Debian, upstream project releases, PyPI and npm. Normal runtime conversion does not depend on an external network service.
-
-## Brand assets
-
-Filewake logo variants and generated favicon assets live in [`frontend/static`](frontend/static). The UI automatically selects black or white inverted artwork in the footer based on the saved theme.
+</details>
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
+[MIT](LICENSE). Filewake is made by [KoDesigns](https://github.com/KoDesigns).
