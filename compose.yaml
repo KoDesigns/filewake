@@ -33,8 +33,8 @@ services:
     cpus: ${CPU_LIMIT:-4.0}
     stop_grace_period: 15s
     networks:
-      - converter_internal
+      - converter_network
 
 networks:
-  converter_internal:
-    internal: true
+  converter_network:
+    driver: bridge

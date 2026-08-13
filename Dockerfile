@@ -100,7 +100,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     MAGICK_CONFIGURE_PATH=/etc/ImageMagick-7 \
-    PATH=/opt/imagemagick/bin:/opt/ffmpeg/bin:/opt/vips/bin:/usr/local/bin:/usr/bin:/bin
+    PATH=/opt/imagemagick/bin:/opt/ffmpeg/bin:/opt/vips/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl libmagic1 pandoc \

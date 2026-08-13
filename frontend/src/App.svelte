@@ -18,6 +18,7 @@
   let converting = false;
   let zipBusy = false;
   let theme = 'light';
+  let fallbackIdCounter = 0;
 
   $: successful = items.filter((item) => item.status === 'done');
   $: ready = items.filter((item) => item.status === 'ready' || item.status === 'failed');
@@ -87,6 +88,20 @@
     return category?.[source] || [];
   }
 
+  function createClientId() {
+    const browserCrypto = globalThis.crypto;
+    if (typeof browserCrypto?.randomUUID === 'function') return browserCrypto.randomUUID();
+    if (typeof browserCrypto?.getRandomValues === 'function') {
+      const bytes = browserCrypto.getRandomValues(new Uint8Array(16));
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('');
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    }
+    fallbackIdCounter += 1;
+    return `file-${Date.now().toString(36)}-${fallbackIdCounter.toString(36)}`;
+  }
+
   async function inspectOne(item) {
     update(item.id, { status: 'inspecting', error: '' });
     try {
@@ -122,7 +137,7 @@
       .slice(0, remainingCount)
       .filter((file) => !known.has(`${file.name}:${file.size}:${file.lastModified}`))
       .map((file) => ({
-        id: crypto.randomUUID(), file, status: 'inspecting', progress: 0, outputs: [],
+        id: createClientId(), file, status: 'inspecting', progress: 0, outputs: [],
         outputFormat: '', detectedFormat: '', category: '', mismatch: false,
         sourceUrl: URL.createObjectURL(file), resultUrl: '', resultName: '', resultBlob: null, error: ''
       }));
