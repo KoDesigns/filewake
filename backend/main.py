@@ -79,7 +79,7 @@ class SecurityHeadersMiddleware:
                 headers = message.setdefault("headers", [])
                 headers.extend(
                     [
-                        (b"content-security-policy", b"default-src 'self'; connect-src 'self'; img-src 'self' blob: data:; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"),
+                        (b"content-security-policy", b"default-src 'self'; connect-src 'self'; img-src 'self' blob: data:; font-src 'self' blob:; media-src 'self' blob:; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"),
                         (b"referrer-policy", b"no-referrer"),
                         (b"x-content-type-options", b"nosniff"),
                         (b"x-frame-options", b"DENY"),

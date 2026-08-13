@@ -6,7 +6,10 @@ def test_health(client):
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.headers["x-content-type-options"] == "nosniff"
-    assert "default-src 'self'" in response.headers["content-security-policy"]
+    policy = response.headers["content-security-policy"]
+    assert "default-src 'self'" in policy
+    assert "font-src 'self' blob:" in policy
+    assert "media-src 'self' blob:" in policy
 
 
 def test_info_is_stateless(client):
