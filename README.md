@@ -21,10 +21,10 @@ Filewake combines a minimal drag-and-drop interface with an API for scripts, n8n
 - Docker Compose V2 (`docker compose`)
 - At least 6 GB RAM available to Docker for the default limits
 
-Clone the private repository and start Filewake:
+Clone the repository and start Filewake:
 
 ```bash
-git clone git@github.com:KoDesigns/filewake.git
+git clone https://github.com/KoDesigns/filewake.git
 cd filewake
 docker compose up -d --build
 ```
@@ -41,7 +41,7 @@ Verify the API and packaged conversion engines:
 curl http://127.0.0.1:8090/api/health
 ```
 
-The first build takes longer because the image packages native media and document engines. Later starts use the built image.
+The first build compiles FFmpeg, libvips and ImageMagick, then packages the remaining media and document engines. On a modest home server this can take 10–30 minutes. Do not interrupt it while a native build step is still progressing. Docker caches completed stages, so later starts and most rebuilds are substantially faster.
 
 Useful Docker commands:
 
@@ -66,11 +66,30 @@ No database migration, account setup, volume creation or separate frontend servi
 
 Filewake is a normal Compose stack and can be deployed directly through Dockge:
 
-1. Create a stack named `filewake`.
-2. Place this repository in the stack directory.
-3. Use the included [`compose.yaml`](compose.yaml).
-4. Select **Deploy**.
+1. Find Dockge's configured stack directory. The standard location is `/opt/stacks`.
+2. Clone Filewake into a folder directly below it:
+
+   ```bash
+   sudo mkdir -p /opt/stacks/filewake
+   sudo chown "$USER":"$(id -gn)" /opt/stacks/filewake
+   git clone https://github.com/KoDesigns/filewake.git /opt/stacks/filewake
+   cd /opt/stacks/filewake
+   docker compose config
+   ```
+
+3. In Dockge's top-right menu, select **Scan Stacks Folder**.
+4. Open the discovered `filewake` stack and select **Deploy**.
 5. Open `http://SERVER-IP:8090`.
+
+Verify the published port and API from the server:
+
+```bash
+cd /opt/stacks/filewake
+docker compose ps
+curl -fsS http://127.0.0.1:8090/api/health
+```
+
+The `PORTS` column should include `0.0.0.0:8090->8080/tcp` (and may also show the IPv6 equivalent), rather than only `8080/tcp`.
 
 Normal operation uses no persistent Docker volume. `/tmp` and `/run` are writable `tmpfs` mounts; the remainder of the container filesystem is read-only.
 
@@ -279,7 +298,7 @@ ImageMagick         Pandoc
   fallback
 ```
 
-The production image contains the frontend and every conversion engine. Node.js exists only in the frontend build stage and is not present as the application server.
+The production image contains the frontend and every conversion engine. Svelte is compiled to static HTML, CSS and JavaScript during the image build. FastAPI/Uvicorn serves both those assets and `/api/*` from the same container and port. Node.js exists only in the frontend build stage and is not present at runtime.
 
 ## Privacy and storage
 
@@ -293,7 +312,7 @@ Filewake has:
 - no persistent upload or output directory
 - no persistent Docker volume
 
-Each request receives a random workspace below `/tmp/converter`. In Compose, `/tmp` is RAM-backed `tmpfs`. Inputs and outputs are deleted after streaming completes, fails, times out or disconnects. Successful browser results live in temporary browser `Blob` objects and disappear when the page is refreshed or cleared.
+Each request receives a random workspace below `/tmp/converter`. In Compose, `/tmp` is RAM-backed `tmpfs`. Inputs and outputs are deleted after streaming completes, fails, times out or disconnects. Source previews and successful results use temporary browser `Blob` objects—including direct local previews of supported font files—and disappear when the page is refreshed or cleared.
 
 The accurate guarantee is **no persistent file storage**. Uploaded bytes necessarily exist temporarily while a conversion is running.
 
@@ -390,6 +409,16 @@ Dependencies are not updated inside a running container. The update process is:
 6. Inspect packaged versions and run a vulnerability scan.
 7. Deploy the rebuilt image.
 
+For a normal Dockge installation cloned from GitHub:
+
+```bash
+cd /opt/stacks/filewake
+git pull --ff-only
+docker compose up -d --build
+```
+
+Dockge can be used for the final deploy/recreate step instead. Filewake does not update dependencies inside a running container.
+
 ## Troubleshooting
 
 ### A conversion engine is unavailable
@@ -415,6 +444,25 @@ Local development:
 ```bash
 API_PORT=8081 FRONTEND_PORT=5174 ./dev.sh
 ```
+
+### The container is healthy but the browser reports connection refused
+
+Confirm that Docker actually published the port:
+
+```bash
+docker compose ps
+docker compose config | grep -A5 -B2 'ports:'
+sudo ss -ltnp | grep ':8090'
+```
+
+`docker compose ps` must show `8090->8080`. Recreate the container after changing Compose networking or port configuration:
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+Filewake uses a dedicated standard bridge network. Do not change it to `internal: true`; Docker cannot publish the application port from a container attached only to an internal network.
 
 ### Temporary storage is full
 
