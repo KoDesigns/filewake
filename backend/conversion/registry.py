@@ -31,14 +31,18 @@ MIMES = {
     "odp": "application/vnd.oasis.opendocument.presentation",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "ods": "application/vnd.oasis.opendocument.spreadsheet",
+    "csv": "text/csv",
     "ttf": "font/ttf", "otf": "font/otf", "woff": "font/woff",
     "woff2": "font/woff2",
 }
 
+AUDIO_FORMATS = ["mp3", "wav", "flac", "aac", "m4a", "ogg", "opus", "aiff"]
+VIDEO_FORMATS = ["mp4", "mkv", "mov", "webm"]
+
 DEFAULTS = {
     "heic": "jpg", "tiff": "jpg", "png": "webp", "flac": "mp3",
     "wav": "mp3", "mov": "mp4", "mkv": "mp4", "docx": "pdf",
-    "odt": "pdf", "pptx": "pdf", "xlsx": "pdf", "ttf": "woff2",
+    "odt": "pdf", "pptx": "pdf", "xlsx": "pdf", "csv": "xlsx", "ttf": "woff2",
     "otf": "woff2", "woff": "ttf", "woff2": "ttf",
 }
 
@@ -67,22 +71,22 @@ class ConversionRegistry:
                 if source != target:
                     self._add(source, target, "image", "libvips")
 
-        audio_formats = ["mp3", "wav", "flac", "aac", "m4a", "ogg", "opus", "aiff"]
-        for source in audio_formats:
-            for target in audio_formats:
+        for source in AUDIO_FORMATS:
+            for target in AUDIO_FORMATS:
                 if source != target:
                     self._add(source, target, "audio", "ffmpeg")
 
-        for source in ["mp4", "mkv", "mov", "webm"]:
-            for target in ["mp4", "mkv", "mov", "webm"]:
+        for source in VIDEO_FORMATS:
+            for target in [*VIDEO_FORMATS, *AUDIO_FORMATS]:
                 if source != target:
                     self._add(source, target, "video", "ffmpeg")
 
         libreoffice = {
             "docx": ["pdf", "odt"], "odt": ["pdf", "docx"],
             "rtf": ["pdf", "docx"], "pptx": ["pdf", "odp"],
-            "odp": ["pdf", "pptx"], "xlsx": ["pdf", "ods"],
+            "odp": ["pdf", "pptx"], "xlsx": ["pdf", "ods", "csv"],
             "ods": ["pdf", "xlsx"],
+            "csv": ["xlsx"],
         }
         for source, targets in libreoffice.items():
             for target in targets:
@@ -125,7 +129,17 @@ class ConversionRegistry:
 
     def possible_outputs(self, source: str) -> list[str]:
         specs = [spec for (item, _), spec in self._specs.items() if item == source]
-        return [spec.output for spec in sorted(specs, key=lambda item: (not item.default, item.output))]
+        return [
+            spec.output
+            for spec in sorted(
+                specs,
+                key=lambda item: (
+                    not item.default,
+                    source in VIDEO_FORMATS and item.output in AUDIO_FORMATS,
+                    item.output,
+                ),
+            )
+        ]
 
     def default_output(self, source: str) -> str | None:
         return next((spec.output for spec in self._specs.values() if spec.input == source and spec.default), None)

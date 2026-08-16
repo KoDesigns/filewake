@@ -75,7 +75,7 @@ The live source of truth is [`GET /api/formats`](#api).
 |---|---|---|
 | Images | JPG, PNG, WebP, AVIF, HEIC/HEIF, TIFF | JPG, PNG, WebP, AVIF, TIFF |
 | Audio | MP3, WAV, FLAC, AAC, M4A, OGG, Opus, AIFF | Other allowlisted audio formats |
-| Video | MP4, MKV, MOV, WebM | MP4, MKV, MOV, WebM |
+| Video | MP4, MKV, MOV, WebM | MP4, MKV, MOV, WebM, or MP3, WAV, FLAC, AAC, M4A, OGG, Opus, AIFF audio |
 | Documents | DOCX, ODT, RTF, TXT, Markdown, HTML, EPUB, PPTX, ODP, XLSX, ODS, CSV | Explicit allowlisted routes, including PDF and CSV ↔ XLSX |
 | Fonts | TTF, OTF, WOFF, WOFF2 | WOFF/WOFF2 or the recoverable desktop format |
 
@@ -282,6 +282,7 @@ Updates happen by rebuilding the image. Nothing updates itself inside the runnin
 - PDF is an output format, not a promise of perfect editable reconstruction.
 - Office conversions can change layout when the source depends on unavailable fonts or platform-specific behavior.
 - XLSX → CSV exports one worksheet.
+- Video → audio extracts the first audio track. Videos without an audio track cannot produce audio output.
 - Font projects such as `.designspace` and UFO are not supported.
 - PostScript, EPS, XPS, arbitrary URLs, macros, uploaded filters, and custom converter arguments are not supported.
 - Very large browser downloads and browser-created ZIP files still depend on available client memory.

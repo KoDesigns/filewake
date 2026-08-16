@@ -18,7 +18,11 @@ LIBREOFFICE_FILTERS = {
     "odp": "odp:impress8",
     "xlsx": "xlsx:Calc MS Excel 2007 XML",
     "ods": "ods:calc8",
+    # UTF-8, comma field separator, double-quote text delimiter, first sheet only.
+    "csv": "csv:Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,true,false,false,0,false,false,false",
 }
+
+CSV_INPUT_FILTER = "Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,true,false,false,0,false,false,false"
 
 PANDOC_INPUTS = {"md": "commonmark", "txt": "commonmark", "html": "html", "epub": "epub"}
 PANDOC_OUTPUTS = {"md": "commonmark", "html": "html5", "docx": "docx", "epub": "epub3"}
@@ -35,18 +39,23 @@ class DocumentConverter(Converter):
         return bool(spec and spec.category == self.category)
 
     def _libreoffice(
-        self, input_path: Path, output_path: Path, output_format: str, workspace: Path
+        self, input_path: Path, output_path: Path, input_format: str, output_format: str, workspace: Path
     ) -> None:
         output_dir = workspace / "lo-output"
         output_dir.mkdir(mode=0o700, exist_ok=True)
         profile_uri = f"file://{quote(str(workspace / 'libreoffice-profile'))}"
+        arguments = [
+            "libreoffice", "--headless", "--safe-mode", "--nologo", "--nodefault",
+            "--nofirststartwizard", f"-env:UserInstallation={profile_uri}",
+        ]
+        if input_format == "csv":
+            arguments.append(f"--infilter={CSV_INPUT_FILTER}")
+        arguments.extend([
+            "--convert-to", LIBREOFFICE_FILTERS[output_format],
+            "--outdir", str(output_dir), str(input_path),
+        ])
         run_command(
-            [
-                "libreoffice", "--headless", "--safe-mode", "--nologo", "--nodefault",
-                "--nofirststartwizard", f"-env:UserInstallation={profile_uri}",
-                "--convert-to", LIBREOFFICE_FILTERS[output_format],
-                "--outdir", str(output_dir), str(input_path),
-            ],
+            arguments,
             self.settings.document_timeout_seconds,
             workspace,
             minimal_environment(workspace),
@@ -80,12 +89,12 @@ class DocumentConverter(Converter):
     ) -> ConversionResult:
         spec = registry.require(input_format, output_format)
         if spec.engine == "libreoffice":
-            self._libreoffice(input_path, output_path, output_format, workspace)
+            self._libreoffice(input_path, output_path, input_format, output_format, workspace)
             return ConversionResult(output_path, "libreoffice")
         if output_format == "pdf":
             intermediate = workspace / "pandoc-output.docx"
             self._pandoc(input_path, intermediate, input_format, "docx", workspace)
-            self._libreoffice(intermediate, output_path, "pdf", workspace)
+            self._libreoffice(intermediate, output_path, "docx", "pdf", workspace)
             return ConversionResult(output_path, "pandoc+libreoffice")
         self._pandoc(input_path, output_path, input_format, output_format, workspace)
         return ConversionResult(output_path, "pandoc")

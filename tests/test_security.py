@@ -125,6 +125,14 @@ def test_random_bytes_named_video_are_not_trusted(tmp_path):
     assert detection.format is None
 
 
+def test_utf8_csv_is_detected_from_text_and_allowlisted_extension(tmp_path):
+    path = tmp_path / "input.bin"
+    path.write_text('name,amount\n"North wave",42\n', encoding="utf-8")
+    detection = detect_file(path, "report.csv", "text/csv")
+    assert detection.format == "csv"
+    assert detection.mime in {"text/csv", "text/plain"}
+
+
 def test_oversized_content_length_rejected_before_parsing(client):
     response = client.post(
         "/api/inspect",

@@ -49,6 +49,9 @@ MIME_FORMATS = {
     "application/vnd.oasis.opendocument.text": "odt",
     "application/vnd.oasis.opendocument.presentation": "odp",
     "application/vnd.oasis.opendocument.spreadsheet": "ods",
+    "text/csv": "csv",
+    "application/csv": "csv",
+    "text/comma-separated-values": "csv",
     "application/vnd.ms-fontobject": "woff",
     "font/woff": "woff",
     "font/woff2": "woff2",
@@ -209,7 +212,7 @@ def detect_file(
         elif extension in {"mp4", "m4a", "mov", "avif", "heic"}:
             detected = None
 
-    if mime == "text/plain" and extension in {"txt", "md"}:
+    if mime == "text/plain" and extension in {"txt", "md", "csv"}:
         detected = extension
 
     if detected is None and extension == "rtf":

@@ -118,6 +118,27 @@ def test_h264_aac_mkv_to_mp4_remux(tmp_path):
         assert validate_output(destination, "mp4", settings.max_output_size_bytes) > 0
 
 
+def test_video_to_mp3_extracts_audio_track(tmp_path):
+    require_tools("ffmpeg", "ffprobe")
+    settings = settings_for(tmp_path)
+    with Workspace(settings) as workspace:
+        source = workspace.input_path("mp4")
+        run_command(
+            [
+                "ffmpeg", "-nostdin", "-f", "lavfi", "-i", "color=c=black:s=64x64:d=1",
+                "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100:duration=1",
+                "-shortest", "-c:v", "libx264", "-c:a", "aac", "-y", str(source),
+            ],
+            timeout=30,
+            cwd=workspace.path,
+            env=minimal_environment(workspace.path),
+        )
+        destination = workspace.output_path("mp3")
+        result = Dispatcher(settings).convert(source, destination, "mp4", "mp3", workspace.path)
+        assert result.engine == "ffmpeg"
+        assert validate_output(destination, "mp3", settings.max_output_size_bytes) > 0
+
+
 def test_markdown_to_html(tmp_path):
     require_tools("pandoc")
     settings = settings_for(tmp_path)
@@ -140,6 +161,25 @@ def test_docx_to_pdf(tmp_path):
         destination = workspace.output_path("pdf")
         Dispatcher(settings).convert(docx, destination, "docx", "pdf", workspace.path)
         assert validate_output(destination, "pdf", settings.max_output_size_bytes) > 0
+
+
+def test_csv_to_xlsx_and_back(tmp_path):
+    require_tools("libreoffice")
+    settings = settings_for(tmp_path)
+    with Workspace(settings) as workspace:
+        source = workspace.input_path("csv")
+        source.write_text('name,amount,formula\n"North wave",42,"=1+1"\n', encoding="utf-8")
+        workbook = workspace.output_path("xlsx")
+        result = Dispatcher(settings).convert(source, workbook, "csv", "xlsx", workspace.path)
+        assert result.engine == "libreoffice"
+        assert validate_output(workbook, "xlsx", settings.max_output_size_bytes) > 0
+
+        restored = workspace.path / "restored.csv"
+        Dispatcher(settings).convert(workbook, restored, "xlsx", "csv", workspace.path)
+        assert validate_output(restored, "csv", settings.max_output_size_bytes) > 0
+        exported = restored.read_text(encoding="utf-8")
+        assert "North wave" in exported
+        assert "=1+1" in exported
 
 
 def test_ttf_to_woff2_and_back(tmp_path):

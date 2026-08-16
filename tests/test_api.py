@@ -23,6 +23,10 @@ def test_formats_come_from_registry(client):
     payload = client.get("/api/formats").json()["categories"]
     assert "jpg" in payload["image"]["heic"]
     assert "mp3" in payload["audio"]["flac"]
+    assert "mp3" in payload["video"]["mp4"]
+    assert "wav" in payload["video"]["mov"]
+    assert payload["document"]["csv"][0] == "xlsx"
+    assert "csv" in payload["document"]["xlsx"]
     assert payload["font"]["ttf"][0] == "woff2"
     assert "designspace" not in payload["font"]
 

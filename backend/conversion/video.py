@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 from backend.config import Settings
+from backend.conversion.audio import AUDIO_ENCODERS
 from backend.conversion.base import ConversionResult, Converter
-from backend.conversion.registry import registry
+from backend.conversion.registry import AUDIO_FORMATS, registry
 from backend.errors import ConverterError
 from backend.runtime.subprocess import minimal_environment, run_command
 
@@ -82,6 +83,23 @@ class VideoConverter(Converter):
         workspace: Path,
     ) -> ConversionResult:
         probe = self.inspect(input_path)
+        if output_format in AUDIO_FORMATS:
+            if not any(stream.get("codec_type") == "audio" for stream in probe.get("streams", [])):
+                raise ConverterError("conversion_failed", "The uploaded video has no audio track.", 422)
+            args = [
+                "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
+                "-protocol_whitelist", "file,pipe", "-i", str(input_path),
+                "-map", "0:a:0", "-map_metadata", "0", "-vn",
+                *AUDIO_ENCODERS[output_format], "-y", str(output_path),
+            ]
+            run_command(
+                args,
+                self.settings.video_timeout_seconds,
+                workspace,
+                minimal_environment(workspace),
+            )
+            return ConversionResult(output_path, "ffmpeg")
+
         remux = self._can_remux(probe, output_format)
         codec_args = ["-c", "copy"] if remux else self._transcode_args(output_format)
         args = [
