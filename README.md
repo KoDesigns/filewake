@@ -26,7 +26,7 @@ One container. One port. No accounts, database, history, cloud converter, teleme
 
 ## Run it
 
-You need Docker Compose V2 and about 6 GB of memory with the default limits. Or run it on machine with <a href="#local">local server</a>
+You need Docker Compose V2 and about 6 GB of memory with the default limits. Or run it on a mac machine with <a href="#local">local server</a>
 
 ```bash
 git clone https://github.com/KoDesigns/filewake.git
@@ -64,8 +64,6 @@ http://SERVER-IP:8090
 ```
 
 `docker compose ps` should show `8090->8080`, not only `8080/tcp`.
-
-No setup wizard. No database migration. No volume creation.
 
 ## What it converts
 
