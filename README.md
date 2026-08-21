@@ -26,7 +26,7 @@ One container. One port. No accounts, database, history, cloud converter, teleme
 
 ## Run it
 
-You need Docker Compose V2 and about 6 GB of memory with the default limits.
+You need Docker Compose V2 and about 6 GB of memory with the default limits. Or run it on machine with <a href="#local">local server</a>
 
 ```bash
 git clone https://github.com/KoDesigns/filewake.git
@@ -150,7 +150,34 @@ docker compose up -d --build
 ```
 
 Updates happen by rebuilding the image. Nothing updates itself inside the running container.
+<details>
+<summary><h2 id="local">Local development</h2></summary>
 
+The included launcher starts FastAPI and Vite together on macOS.
+
+```bash
+brew bundle --file Brewfile
+
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+
+cd frontend
+npm ci
+cd ..
+
+chmod +x dev.sh
+./dev.sh
+```
+
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The API runs on port `8080`, and Vite proxies `/api` to it.
+
+Override either port when needed:
+
+```bash
+API_PORT=8081 FRONTEND_PORT=5174 ./dev.sh
+```
+
+</details>
 <details><summary><h2>Security</h2></summary>
 
 Filewake treats every upload as hostile.
@@ -206,34 +233,6 @@ Keep the tmpfs, memory, upload, output, and concurrency limits sensible relative
 
 </details>
 
-<details>
-<summary><strong>Local development</strong></summary>
-
-The included launcher starts FastAPI and Vite together on macOS.
-
-```bash
-brew bundle --file Brewfile
-
-python3 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt
-
-cd frontend
-npm ci
-cd ..
-
-chmod +x dev.sh
-./dev.sh
-```
-
-Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The API runs on port `8080`, and Vite proxies `/api` to it.
-
-Override either port when needed:
-
-```bash
-API_PORT=8081 FRONTEND_PORT=5174 ./dev.sh
-```
-
-</details>
 
 <details>
 <summary><strong>Tests, versions, and image scanning</strong></summary>
@@ -278,7 +277,7 @@ Review findings instead of blindly suppressing them.
 </details>
 
 
-<details><summary><h2>Known limits</h2></summary>
+<details><summary>Known limits</summary>
 
 - PDF is an output format, not a promise of perfect editable reconstruction.
 - Office conversions can change layout when the source depends on unavailable fonts or platform-specific behavior.
