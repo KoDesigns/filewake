@@ -141,7 +141,17 @@ Svelte is compiled during the image build. FastAPI/Uvicorn serves both the stati
 
 Each request gets its own random workspace under `/tmp/converter`. Compose mounts `/tmp` in RAM. The root filesystem stays read-only and there are no persistent volumes.
 
-## Security
+## Update
+
+```bash
+cd /opt/stacks/filewake
+git pull --ff-only
+docker compose up -d --build
+```
+
+Updates happen by rebuilding the image. Nothing updates itself inside the running container.
+
+<details><summary><h2>Security</h2></summary>
 
 Filewake treats every upload as hostile.
 
@@ -162,7 +172,7 @@ Filewake treats every upload as hostile.
 - cleanup after success, failure, timeout, and disconnect
 
 Use it on a trusted LAN or VPN. Do not put it directly on the public internet without authentication, TLS, rate limiting, reverse-proxy body limits, and monitoring. Containers reduce risk; they are not magic.
-
+</details>
 <details>
 <summary><strong>Configuration</strong></summary>
 
@@ -267,15 +277,6 @@ Review findings instead of blindly suppressing them.
 
 </details>
 
-## Update
-
-```bash
-cd /opt/stacks/filewake
-git pull --ff-only
-docker compose up -d --build
-```
-
-Updates happen by rebuilding the image. Nothing updates itself inside the running container.
 
 <details><summary><h2>Known limits</h2></summary>
 
