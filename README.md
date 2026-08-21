@@ -22,7 +22,7 @@ Filewake is a local, stateless file converter with a drag-and-drop UI and a smal
 
 > Files are processed locally on your server, held only in temporary storage while needed, then removed. Browser previews and downloads disappear when the page is refreshed or cleared.
 
-![Filewake demo](README_ASSETS/Process_15fps.mp4)
+![Filewake demo](README_ASSETS/Process_15fps.webm)
 
 ## Run it
 
