@@ -277,7 +277,7 @@ docker compose up -d --build
 
 Updates happen by rebuilding the image. Nothing updates itself inside the running container.
 
-<details><summary>## Known limits</summary>
+<details><summary><h2>Known limits</h2></summary>
 
 - PDF is an output format, not a promise of perfect editable reconstruction.
 - Office conversions can change layout when the source depends on unavailable fonts or platform-specific behavior.
