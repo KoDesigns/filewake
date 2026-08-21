@@ -20,9 +20,9 @@ Filewake is a local, stateless file converter with a drag-and-drop UI and a smal
 
 <i><b>Disclaimer:</b> This is "vibecoded" for personal use, but feel free to use. I do not take responsibility if something is not working on your system</i>
 
-One container. One port. No accounts, database, history, cloud converter, telemetry, or persistent file storage.
-
 > Files are processed locally on your server, held only in temporary storage while needed, then removed. Browser previews and downloads disappear when the page is refreshed or cleared.
+
+![Filewake demo](README_ASSETS/Process_12fps.gif)
 
 ## Run it
 
