@@ -277,7 +277,7 @@ docker compose up -d --build
 
 Updates happen by rebuilding the image. Nothing updates itself inside the running container.
 
-## Known limits
+<details><summary>## Known limits</summary>
 
 - PDF is an output format, not a promise of perfect editable reconstruction.
 - Office conversions can change layout when the source depends on unavailable fonts or platform-specific behavior.
@@ -287,6 +287,7 @@ Updates happen by rebuilding the image. Nothing updates itself inside the runnin
 - PostScript, EPS, XPS, arbitrary URLs, macros, uploaded filters, and custom converter arguments are not supported.
 - Very large browser downloads and browser-created ZIP files still depend on available client memory.
 
+</details>
 <details>
 <summary><strong>Troubleshooting</strong></summary>
 
