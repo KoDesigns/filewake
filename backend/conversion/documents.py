@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import shutil
+import zipfile
 from pathlib import Path
 from urllib.parse import quote
+from xml.etree import ElementTree
 
 from backend.config import Settings
 from backend.conversion.base import ConversionResult, Converter
@@ -26,6 +29,9 @@ CSV_INPUT_FILTER = "Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,true,fa
 
 PANDOC_INPUTS = {"md": "commonmark", "txt": "commonmark", "html": "html", "epub": "epub"}
 PANDOC_OUTPUTS = {"md": "commonmark", "html": "html5", "docx": "docx", "epub": "epub3"}
+EPUB_CONTAINER_PATH = "META-INF/container.xml"
+EPUB_CONTAINER_NAMESPACE = "urn:oasis:names:tc:opendocument:xmlns:container"
+EPUB_PACKAGE_NAMESPACE = "http://www.idpf.org/2007/opf"
 
 
 class DocumentConverter(Converter):
@@ -68,6 +74,7 @@ class DocumentConverter(Converter):
     def _pandoc(
         self, input_path: Path, output_path: Path, input_format: str, output_format: str, workspace: Path
     ) -> None:
+        pandoc_input = self._normalize_epub_for_pandoc(input_path, workspace) if input_format == "epub" else input_path
         arguments = [
             "pandoc", "--sandbox", "--from", PANDOC_INPUTS[input_format],
             "--to", PANDOC_OUTPUTS[output_format],
@@ -76,13 +83,63 @@ class DocumentConverter(Converter):
             # A fragment is detected as plain text by output validation, and any
             # extracted EPUB media would disappear with the temporary workspace.
             arguments.extend(["--standalone", "--embed-resources"])
-        arguments.extend(["--output", str(output_path), str(input_path)])
+        arguments.extend(["--output", str(output_path), str(pandoc_input)])
         run_command(
             arguments,
             self.settings.document_timeout_seconds,
             workspace,
             minimal_environment(workspace),
         )
+
+    def _normalize_epub_for_pandoc(self, input_path: Path, workspace: Path) -> Path:
+        """Remove dangling EPUB spine entries that make Pandoc abort with parseSpine."""
+        try:
+            with zipfile.ZipFile(input_path) as source:
+                container = ElementTree.fromstring(source.read(EPUB_CONTAINER_PATH))
+                rootfile = container.find(f".//{{{EPUB_CONTAINER_NAMESPACE}}}rootfile")
+                package_path = rootfile.get("full-path") if rootfile is not None else None
+                if not package_path or package_path not in source.namelist():
+                    return input_path
+
+                package = ElementTree.fromstring(source.read(package_path))
+                namespace = f"{{{EPUB_PACKAGE_NAMESPACE}}}"
+                manifest = package.find(f"{namespace}manifest")
+                spine = package.find(f"{namespace}spine")
+                if manifest is None or spine is None:
+                    return input_path
+                manifest_ids = {
+                    item_id
+                    for item in manifest.findall(f"{namespace}item")
+                    if (item_id := item.get("id"))
+                }
+                dangling = [
+                    itemref
+                    for itemref in spine.findall(f"{namespace}itemref")
+                    if itemref.get("idref") not in manifest_ids
+                ]
+                if not dangling:
+                    return input_path
+                for itemref in dangling:
+                    spine.remove(itemref)
+
+                ElementTree.register_namespace("", EPUB_PACKAGE_NAMESPACE)
+                normalized_package = ElementTree.tostring(
+                    package,
+                    encoding="utf-8",
+                    xml_declaration=True,
+                )
+                normalized_path = workspace / "pandoc-input.epub"
+                with zipfile.ZipFile(normalized_path, "w", allowZip64=True) as destination:
+                    for info in source.infolist():
+                        if info.filename == package_path:
+                            destination.writestr(info, normalized_package)
+                            continue
+                        with source.open(info) as reader, destination.open(info, "w") as writer:
+                            shutil.copyfileobj(reader, writer)
+                return normalized_path
+        except (OSError, KeyError, ValueError, zipfile.BadZipFile, ElementTree.ParseError):
+            # Pandoc remains the authority for other malformed-EPUB errors.
+            return input_path
 
     def convert(
         self,

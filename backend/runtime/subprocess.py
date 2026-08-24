@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import signal
@@ -12,6 +13,7 @@ from backend.errors import ConversionFailed, ConversionTimeout
 
 
 MAX_CAPTURE_BYTES = 64 * 1024
+logger = logging.getLogger("converter.subprocess")
 CONVERTER_PATH = ":".join(
     (
         "/opt/imagemagick/bin",
@@ -116,6 +118,15 @@ def run_command(
     for reader in readers:
         reader.join(timeout=2)
     if process.returncode != 0:
+        diagnostic = (stderr_buffer or stdout_buffer).decode("utf-8", errors="replace").strip()
+        if diagnostic:
+            diagnostic = diagnostic[-4_096:].replace(str(cwd), "<workspace>")
+        logger.warning(
+            "engine=%s returncode=%d diagnostic=%r",
+            Path(executable).name,
+            process.returncode,
+            diagnostic or "no converter output",
+        )
         raise ConversionFailed()
     return CommandResult(
         stdout=stdout_buffer.decode("utf-8", errors="replace"),

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import base64
+import shutil
 import wave
+import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
 
@@ -165,6 +168,38 @@ def test_epub_to_html_produces_a_complete_document(tmp_path):
 
         assert result.engine == "pandoc"
         assert "EPUB chapter" in destination.read_text(encoding="utf-8")
+        assert validate_output(destination, "html", settings.max_output_size_bytes) > 0
+
+
+def test_epub_with_dangling_spine_entry_is_normalized(tmp_path):
+    require_tools("pandoc")
+    settings = settings_for(tmp_path)
+    with Workspace(settings) as workspace:
+        markdown = workspace.input_path("md")
+        markdown.write_text("# Recoverable EPUB\n", encoding="utf-8")
+        source = workspace.path / "valid.epub"
+        broken = workspace.input_path("epub")
+        Dispatcher(settings).convert(markdown, source, "md", "epub", workspace.path)
+
+        with zipfile.ZipFile(source) as source_archive, zipfile.ZipFile(broken, "w") as destination_archive:
+            package = ElementTree.fromstring(source_archive.read("EPUB/content.opf"))
+            namespace = "{http://www.idpf.org/2007/opf}"
+            spine = package.find(f"{namespace}spine")
+            assert spine is not None
+            spine.append(ElementTree.Element(f"{namespace}itemref", {"idref": "missing-chapter"}))
+            ElementTree.register_namespace("", namespace.strip("{}"))
+            modified_package = ElementTree.tostring(package, encoding="utf-8", xml_declaration=True)
+            for info in source_archive.infolist():
+                if info.filename == "EPUB/content.opf":
+                    destination_archive.writestr(info, modified_package)
+                    continue
+                with source_archive.open(info) as reader, destination_archive.open(info, "w") as writer:
+                    shutil.copyfileobj(reader, writer)
+
+        destination = workspace.output_path("html")
+        Dispatcher(settings).convert(broken, destination, "epub", "html", workspace.path)
+
+        assert "Recoverable EPUB" in destination.read_text(encoding="utf-8")
         assert validate_output(destination, "html", settings.max_output_size_bytes) > 0
 
 
