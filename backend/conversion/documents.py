@@ -68,12 +68,17 @@ class DocumentConverter(Converter):
     def _pandoc(
         self, input_path: Path, output_path: Path, input_format: str, output_format: str, workspace: Path
     ) -> None:
+        arguments = [
+            "pandoc", "--sandbox", "--from", PANDOC_INPUTS[input_format],
+            "--to", PANDOC_OUTPUTS[output_format],
+        ]
+        if output_format == "html":
+            # A fragment is detected as plain text by output validation, and any
+            # extracted EPUB media would disappear with the temporary workspace.
+            arguments.extend(["--standalone", "--embed-resources"])
+        arguments.extend(["--output", str(output_path), str(input_path)])
         run_command(
-            [
-                "pandoc", "--sandbox", "--from", PANDOC_INPUTS[input_format],
-                "--to", PANDOC_OUTPUTS[output_format], "--output", str(output_path),
-                str(input_path),
-            ],
+            arguments,
             self.settings.document_timeout_seconds,
             workspace,
             minimal_environment(workspace),

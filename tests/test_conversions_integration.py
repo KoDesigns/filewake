@@ -148,6 +148,40 @@ def test_markdown_to_html(tmp_path):
         destination = workspace.output_path("html")
         Dispatcher(settings).convert(source, destination, "md", "html", workspace.path)
         assert "Private conversion" in destination.read_text(encoding="utf-8")
+        assert validate_output(destination, "html", settings.max_output_size_bytes) > 0
+
+
+def test_epub_to_html_produces_a_complete_document(tmp_path):
+    require_tools("pandoc")
+    settings = settings_for(tmp_path)
+    with Workspace(settings) as workspace:
+        markdown = workspace.input_path("md")
+        markdown.write_text("# EPUB chapter\n\nLocal bytes only.\n", encoding="utf-8")
+        source = workspace.path / "input.epub"
+        Dispatcher(settings).convert(markdown, source, "md", "epub", workspace.path)
+
+        destination = workspace.output_path("html")
+        result = Dispatcher(settings).convert(source, destination, "epub", "html", workspace.path)
+
+        assert result.engine == "pandoc"
+        assert "EPUB chapter" in destination.read_text(encoding="utf-8")
+        assert validate_output(destination, "html", settings.max_output_size_bytes) > 0
+
+
+def test_epub_to_pdf(tmp_path):
+    require_tools("pandoc", "libreoffice")
+    settings = settings_for(tmp_path)
+    with Workspace(settings) as workspace:
+        markdown = workspace.input_path("md")
+        markdown.write_text("# EPUB chapter\n\nPrintable offline book.\n", encoding="utf-8")
+        source = workspace.path / "input.epub"
+        Dispatcher(settings).convert(markdown, source, "md", "epub", workspace.path)
+
+        destination = workspace.output_path("pdf")
+        result = Dispatcher(settings).convert(source, destination, "epub", "pdf", workspace.path)
+
+        assert result.engine == "pandoc+libreoffice"
+        assert validate_output(destination, "pdf", settings.max_output_size_bytes) > 0
 
 
 def test_docx_to_pdf(tmp_path):

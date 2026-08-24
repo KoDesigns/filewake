@@ -42,7 +42,7 @@ VIDEO_FORMATS = ["mp4", "mkv", "mov", "webm"]
 DEFAULTS = {
     "heic": "jpg", "tiff": "jpg", "png": "webp", "flac": "mp3",
     "wav": "mp3", "mov": "mp4", "mkv": "mp4", "docx": "pdf",
-    "odt": "pdf", "pptx": "pdf", "xlsx": "pdf", "csv": "xlsx", "ttf": "woff2",
+    "odt": "pdf", "pptx": "pdf", "xlsx": "pdf", "csv": "xlsx", "epub": "pdf", "ttf": "woff2",
     "otf": "woff2", "woff": "ttf", "woff2": "ttf",
 }
 
@@ -96,7 +96,7 @@ class ConversionRegistry:
             "md": ["html", "docx", "epub", "pdf"],
             "txt": ["html", "docx", "pdf"],
             "html": ["md", "docx"],
-            "epub": ["html", "md"],
+            "epub": ["html", "md", "pdf"],
         }
         for source, targets in pandoc.items():
             for target in targets:
