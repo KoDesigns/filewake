@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import AssetPreview from './AssetPreview.svelte';
   import Icon from './Icon.svelte';
+  import WaveLoader from './WaveLoader.svelte';
 
   export let item;
   const dispatch = createEventDispatcher();
@@ -28,6 +29,7 @@
   class:has-audio={item.category === 'audio'}
   class:has-font={item.category === 'font'}
   class:is-busy={item.status === 'inspecting' || item.status === 'uploading' || item.status === 'converting'}
+  aria-busy={item.status === 'inspecting' || item.status === 'uploading' || item.status === 'converting'}
 >
   <AssetPreview {item} />
 
@@ -67,7 +69,8 @@
         Retry
       </button>
     {:else}
-      <span class:busy={item.status !== 'ready'}>{labels[item.status]}</span>
+      {#if item.status !== 'ready'}<WaveLoader size={30} />{/if}
+      <span>{labels[item.status]}</span>
       {#if item.status === 'uploading'}<small>{item.progress}%</small>{/if}
     {/if}
   </div>

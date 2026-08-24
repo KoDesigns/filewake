@@ -4,6 +4,7 @@
   import FileRow from './components/FileRow.svelte';
   import Icon from './components/Icon.svelte';
   import WaveBackground from './components/WaveBackground.svelte';
+  import WaveLoader from './components/WaveLoader.svelte';
   import { convertFile, getFormats, getInfo, inspectFile, runPool } from './lib/api.js';
 
   const themeStorageKey = 'converter-theme';
@@ -254,9 +255,11 @@
       on:drop|preventDefault={drop}
       disabled={loadingFormats || Boolean(serviceError)}
     >
-      <span class="drop-icon"><Icon name="upload" size={26} /></span>
-      <span class="drop-main">{items.length ? 'Add more files' : 'Drop files here'}</span>
-      <span class="drop-sub">{items.length ? 'Drop or browse' : 'Images · Video · Audio · Documents · Fonts'}</span>
+      <span class="drop-icon">
+        {#if loadingFormats}<WaveLoader size={32} />{:else}<Icon name="upload" size={26} />{/if}
+      </span>
+      <span class="drop-main">{loadingFormats ? 'Loading converter' : items.length ? 'Add more files' : 'Drop files here'}</span>
+      <span class="drop-sub">{loadingFormats ? 'Checking available formats' : items.length ? 'Drop or browse' : 'Images · Video · Audio · Documents · Fonts'}</span>
       {#if !items.length}<span class="browse-label">Browse files</span>{/if}
     </button>
     <input bind:this={input} class="visually-hidden" type="file" multiple on:change={(event) => addFiles(event.currentTarget.files)} />
@@ -287,10 +290,12 @@
         <div class="primary-actions">
           {#if successful.length > 1}
             <button type="button" class="secondary-button" on:click={downloadAll} disabled={zipBusy}>
-              <Icon name="download" size={18} /> {zipBusy ? 'Preparing ZIP' : 'Download all'}
+              {#if zipBusy}<WaveLoader size={26} />{:else}<Icon name="download" size={18} />{/if}
+              {zipBusy ? 'Preparing ZIP' : 'Download all'}
             </button>
           {/if}
           <button type="button" class="convert-button" on:click={convertAll} disabled={converting || !ready.some((item) => item.outputFormat)}>
+            {#if converting}<WaveLoader size={27} contrast />{/if}
             {converting ? 'Converting files' : `Convert ${ready.filter((item) => item.outputFormat).length || ''} ${ready.length === 1 ? 'file' : 'files'}`}
           </button>
         </div>
