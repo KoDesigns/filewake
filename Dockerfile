@@ -104,7 +104,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH=/opt/imagemagick/bin:/opt/ffmpeg/bin:/opt/vips/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl libmagic1 libnss3 \
+      ca-certificates curl libmagic1 \
+      libcairo2 libcups2t64 libdbus-glib-1-2 libnss3 libx11-xcb1 libxml2 libxslt1.1 \
       fonts-dejavu-core fonts-liberation libgl1 libsm6 libxinerama1 libxrender1 \
       libfontconfig1 libfreetype6 libexpat1-dev libglib2.0-dev libheif-dev \
       libimagequant-dev libjpeg62-turbo-dev liborc-0.4-dev libpng-dev libtiff-dev libwebp-dev \
@@ -129,8 +130,7 @@ RUN set -eu; \
     test "$(pandoc --version | head -n 1)" = "pandoc ${PANDOC_VERSION}"; \
     pandoc --sandbox --from commonmark --to docx \
          --output /tmp/pandoc-sandbox-check.docx /dev/null; \
-    test -s /tmp/pandoc-sandbox-check.docx; \
-    rm /tmp/pandoc-sandbox-check.docx
+    test -s /tmp/pandoc-sandbox-check.docx
 
 RUN set -eu; \
     if [ -z "${TARGETARCH}" ]; then TARGETARCH="$(dpkg --print-architecture)"; fi; \
@@ -148,8 +148,18 @@ RUN set -eu; \
     lo_binary="$(find /opt -path '*/program/soffice' -type f -print -quit)"; \
     test -n "${lo_binary}"; \
     ln -s "${lo_binary}" /usr/local/bin/libreoffice; \
+    missing_libraries="$(ldd "${lo_binary}.bin" | awk '/not found/ { print $1 }')"; \
+    test -z "${missing_libraries}" || { echo "Missing LibreOffice libraries: ${missing_libraries}" >&2; exit 1; }; \
     libreoffice --headless --version >/dev/null; \
-    rm -rf /tmp/libreoffice "/tmp/${lo_file}" /var/lib/apt/lists/*
+    mkdir /tmp/libreoffice-smoke-output /tmp/libreoffice-smoke-profile; \
+    libreoffice --headless --safe-mode --nologo --nodefault --nofirststartwizard \
+      -env:UserInstallation=file:///tmp/libreoffice-smoke-profile \
+      --convert-to pdf --outdir /tmp/libreoffice-smoke-output \
+      /tmp/pandoc-sandbox-check.docx >/dev/null; \
+    test -s /tmp/libreoffice-smoke-output/pandoc-sandbox-check.pdf; \
+    rm -rf /tmp/libreoffice /tmp/libreoffice-smoke-output \
+      /tmp/libreoffice-smoke-profile /tmp/pandoc-sandbox-check.docx \
+      "/tmp/${lo_file}" /var/lib/apt/lists/*
 
 COPY --from=vips-build /opt/vips/ /opt/vips/
 COPY --from=ffmpeg-build /opt/ffmpeg/ /opt/ffmpeg/
