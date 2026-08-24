@@ -110,6 +110,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libmp3lame-dev libopus-dev libvorbis-dev libvpx-dev libx264-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Debian Pandoc cannot access its packaged DOCX template with --sandbox. Give
+# the writer an explicit trusted reference document and verify the workaround
+# using the same sandboxed mode used for uploaded files.
+RUN mkdir -p /opt/filewake \
+    && pandoc --from commonmark --to docx \
+         --output /opt/filewake/pandoc-reference.docx /dev/null \
+    && pandoc --sandbox --from commonmark --to docx \
+         --reference-doc=/opt/filewake/pandoc-reference.docx \
+         --output /tmp/pandoc-sandbox-check.docx /dev/null \
+    && test -s /tmp/pandoc-sandbox-check.docx \
+    && rm /tmp/pandoc-sandbox-check.docx
+
 RUN set -eu; \
     if [ -z "${TARGETARCH}" ]; then TARGETARCH="$(dpkg --print-architecture)"; fi; \
     case "${TARGETARCH}" in \
