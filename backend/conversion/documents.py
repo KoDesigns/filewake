@@ -29,7 +29,6 @@ CSV_INPUT_FILTER = "Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,true,fa
 
 PANDOC_INPUTS = {"md": "commonmark", "txt": "commonmark", "html": "html", "epub": "epub"}
 PANDOC_OUTPUTS = {"md": "commonmark", "html": "html5", "docx": "docx", "epub": "epub3"}
-PANDOC_REFERENCE_DOCX = Path("/opt/filewake/pandoc-reference.docx")
 EPUB_CONTAINER_PATH = "META-INF/container.xml"
 EPUB_CONTAINER_NAMESPACE = "urn:oasis:names:tc:opendocument:xmlns:container"
 EPUB_PACKAGE_NAMESPACE = "http://www.idpf.org/2007/opf"
@@ -80,11 +79,6 @@ class DocumentConverter(Converter):
             "pandoc", "--sandbox", "--from", PANDOC_INPUTS[input_format],
             "--to", PANDOC_OUTPUTS[output_format],
         ]
-        if output_format == "docx" and PANDOC_REFERENCE_DOCX.is_file():
-            # Debian's Pandoc cannot load its packaged DOCX data while sandboxed.
-            # An explicit reference document remains readable without relaxing
-            # the sandbox around untrusted uploaded content.
-            arguments.append(f"--reference-doc={PANDOC_REFERENCE_DOCX}")
         if output_format == "html":
             # A fragment is detected as plain text by output validation, and any
             # extracted EPUB media would disappear with the temporary workspace.

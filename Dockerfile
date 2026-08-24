@@ -91,6 +91,7 @@ RUN curl -fsSLo imagemagick.tar.xz "https://download.imagemagick.org/archive/rel
 FROM python:3.13.14-slim-trixie@sha256:9662417aace5ae7b8e2609cce472b72a8958e134ba372808abe9cc1a0c0125e6 AS runtime
 ARG TARGETARCH
 ARG LIBREOFFICE_VERSION=26.2.5
+ARG PANDOC_VERSION=3.10.1
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -103,24 +104,33 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH=/opt/imagemagick/bin:/opt/ffmpeg/bin:/opt/vips/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl libmagic1 pandoc \
+      ca-certificates curl libmagic1 \
       fonts-dejavu-core fonts-liberation libgl1 libsm6 libxinerama1 libxrender1 \
       libfontconfig1 libfreetype6 libexpat1-dev libglib2.0-dev libheif-dev \
       libimagequant-dev libjpeg62-turbo-dev liborc-0.4-dev libpng-dev libtiff-dev libwebp-dev \
       libmp3lame-dev libopus-dev libvorbis-dev libvpx-dev libx264-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Debian Pandoc cannot access its packaged DOCX template with --sandbox. Give
-# the writer an explicit trusted reference document and verify the workaround
-# using the same sandboxed mode used for uploaded files.
-RUN mkdir -p /opt/filewake \
-    && pandoc --from commonmark --to docx \
-         --output /opt/filewake/pandoc-reference.docx /dev/null \
-    && pandoc --sandbox --from commonmark --to docx \
-         --reference-doc=/opt/filewake/pandoc-reference.docx \
-         --output /tmp/pandoc-sandbox-check.docx /dev/null \
-    && test -s /tmp/pandoc-sandbox-check.docx \
-    && rm /tmp/pandoc-sandbox-check.docx
+# Debian's Pandoc 3.1.11 cannot create DOCX while sandboxed. Install the pinned
+# upstream static build, which also avoids external runtime data dependencies.
+RUN set -eu; \
+    if [ -z "${TARGETARCH}" ]; then TARGETARCH="$(dpkg --print-architecture)"; fi; \
+    case "${TARGETARCH}" in \
+      amd64) pandoc_arch="amd64"; pandoc_sha="72948bf5784f560d5ad1876709daca27e0667f262da727bb33f77b58e52df2f5" ;; \
+      arm64) pandoc_arch="arm64"; pandoc_sha="cd3963da375793a4804c65ae538b4f7b9c23f87cac7f6c74a1cf5e2fff7e8d59" ;; \
+      *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    pandoc_archive="pandoc-${PANDOC_VERSION}-linux-${pandoc_arch}.tar.gz"; \
+    curl -fsSLo "/tmp/${pandoc_archive}" \
+      "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/${pandoc_archive}"; \
+    echo "${pandoc_sha}  /tmp/${pandoc_archive}" | sha256sum -c -; \
+    tar -xzf "/tmp/${pandoc_archive}" -C /usr/local --strip-components=1; \
+    rm "/tmp/${pandoc_archive}"; \
+    test "$(pandoc --version | head -n 1)" = "pandoc ${PANDOC_VERSION}"; \
+    pandoc --sandbox --from commonmark --to docx \
+         --output /tmp/pandoc-sandbox-check.docx /dev/null; \
+    test -s /tmp/pandoc-sandbox-check.docx; \
+    rm /tmp/pandoc-sandbox-check.docx
 
 RUN set -eu; \
     if [ -z "${TARGETARCH}" ]; then TARGETARCH="$(dpkg --print-architecture)"; fi; \
