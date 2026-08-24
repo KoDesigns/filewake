@@ -104,7 +104,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH=/opt/imagemagick/bin:/opt/ffmpeg/bin:/opt/vips/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl libmagic1 \
+      ca-certificates curl libmagic1 libnss3 \
       fonts-dejavu-core fonts-liberation libgl1 libsm6 libxinerama1 libxrender1 \
       libfontconfig1 libfreetype6 libexpat1-dev libglib2.0-dev libheif-dev \
       libimagequant-dev libjpeg62-turbo-dev liborc-0.4-dev libpng-dev libtiff-dev libwebp-dev \
@@ -148,6 +148,7 @@ RUN set -eu; \
     lo_binary="$(find /opt -path '*/program/soffice' -type f -print -quit)"; \
     test -n "${lo_binary}"; \
     ln -s "${lo_binary}" /usr/local/bin/libreoffice; \
+    libreoffice --headless --version >/dev/null; \
     rm -rf /tmp/libreoffice "/tmp/${lo_file}" /var/lib/apt/lists/*
 
 COPY --from=vips-build /opt/vips/ /opt/vips/
